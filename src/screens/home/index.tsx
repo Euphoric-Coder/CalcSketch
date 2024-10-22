@@ -1,10 +1,10 @@
-import { ColorSwatch, Group } from "@mantine/core";
+import { ColorSwatch, Group, Slider } from "@mantine/core";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import Draggable from "react-draggable";
 import { SWATCHES } from "@/constants";
-// import {LazyBrush} from 'lazy-brush';
+import { Loader } from "@/components/Loader";
 
 interface GeneratedResult {
   expression: string;
@@ -20,18 +20,14 @@ interface Response {
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [color, setColor] = useState("rgb(255, 255, 255)");
+  const [color, setColor] = useState("rgb(0, 0, 0)");
   const [reset, setReset] = useState(false);
+  const [lineWidth, setLineWidth] = useState(3); // Default line width
+  const [loading, setLoading] = useState(false);
   const [dictOfVars, setDictOfVars] = useState({});
   const [result, setResult] = useState<GeneratedResult>();
   const [latexPosition, setLatexPosition] = useState({ x: 10, y: 200 });
   const [latexExpression, setLatexExpression] = useState<Array<string>>([]);
-
-  // const lazyBrush = new LazyBrush({
-  //     radius: 10,
-  //     enabled: true,
-  //     initialPoint: { x: 0, y: 0 },
-  // });
 
   useEffect(() => {
     if (latexExpression.length > 0 && window.MathJax) {
@@ -66,7 +62,10 @@ export default function Home() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight - canvas.offsetTop;
         ctx.lineCap = "round";
-        ctx.lineWidth = 3;
+        ctx.lineWidth = lineWidth; // Set line width dynamically based on slider
+        // Set initial black background
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
     }
     const script = document.createElement("script");
@@ -89,7 +88,7 @@ export default function Home() {
     return () => {
       document.head.removeChild(script);
     };
-  }, []);
+  }, [lineWidth]);
 
   const renderLatexToCanvas = (expression: string, answer: string) => {
     const latex = `\\(\\LARGE{${expression} = ${answer}}\\)`;
@@ -111,6 +110,8 @@ export default function Home() {
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "black"; // Reset to black background
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
     }
   };
@@ -118,34 +119,37 @@ export default function Home() {
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (canvas) {
-      canvas.style.background = "black";
       const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.beginPath();
-        ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-        setIsDrawing(true);
-      }
+      const rect = canvas.getBoundingClientRect(); // Get canvas position relative to window
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      ctx!.beginPath();
+      ctx!.moveTo(x, y); // Start drawing from the correct position
+      setIsDrawing(true);
     }
   };
+
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) {
-      return;
-    }
+    if (!isDrawing) return;
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.strokeStyle = color;
-        ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-        ctx.stroke();
-      }
+      const rect = canvas.getBoundingClientRect(); // Get canvas position relative to window
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      ctx!.strokeStyle = color;
+      ctx!.lineWidth = lineWidth; // Apply line width to drawing
+      ctx!.lineTo(x, y);
+      ctx!.stroke();
     }
   };
+
   const stopDrawing = () => {
     setIsDrawing(false);
   };
 
   const runRoute = async () => {
+    setLoading(true);
     const canvas = canvasRef.current;
 
     if (canvas) {
@@ -162,77 +166,66 @@ export default function Home() {
       console.log("Response", resp);
       resp.data.forEach((data: Response) => {
         if (data.assign === true) {
-          // dict_of_vars[resp.result] = resp.answer;
           setDictOfVars({
             ...dictOfVars,
             [data.expr]: data.result,
           });
         }
       });
-      const ctx = canvas.getContext("2d");
-      const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
-      let minX = canvas.width,
-        minY = canvas.height,
-        maxX = 0,
-        maxY = 0;
-
-      for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-          const i = (y * canvas.width + x) * 4;
-          if (imageData.data[i + 3] > 0) {
-            // If pixel is not transparent
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-          }
-        }
-      }
-
-      const centerX = (minX + maxX) / 2;
-      const centerY = (minY + maxY) / 2;
-
-      setLatexPosition({ x: centerX, y: centerY });
-      resp.data.forEach((data: Response) => {
-        setTimeout(() => {
-          setResult({
-            expression: data.expr,
-            answer: data.result,
-          });
-        }, 1000);
-      });
+      setLoading(false);
     }
   };
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-2">
-        <Button
-          onClick={() => setReset(true)}
-          className="z-20 bg-black text-white"
-          variant="default"
-          color="black"
-        >
-          Reset
-        </Button>
-        <Group className="z-20">
-          {SWATCHES.map((swatch) => (
-            <ColorSwatch
-              key={swatch}
-              color={swatch}
-              onClick={() => setColor(swatch)}
-            />
-          ))}
-        </Group>
-        <Button
-          onClick={runRoute}
-          className="z-20 bg-black text-white"
-          variant="default"
-          color="white"
-        >
-          Run
-        </Button>
+      {/* Slider placed outside of Draggable */}
+      <div className="absolute top-6 left-6 z-30 p-4 bg-gray-800 rounded-lg shadow-md max-w-xs">
+        <Slider
+          label="Line Width"
+          value={lineWidth}
+          onChange={setLineWidth}
+          min={1}
+          max={20} // Increased range for larger stroke options
+          step={1}
+          size="lg"
+          className="w-full mb-4"
+          styles={{
+            thumb: { height: 16, width: 16, backgroundColor: "blue" },
+            track: { height: 10, width: 200 },
+          }}
+        />
       </div>
+
+      <div className="absolute top-2 right-2 z-20 p-6 bg-gray-900 rounded-lg shadow-lg max-w-xs">
+        <Draggable>
+          <div className="flex flex-col space-y-4 items-center">
+            <Button
+              onClick={() => setReset(true)}
+              className="w-full bg-red-500 hover:bg-red-600 text-white"
+            >
+              Reset
+            </Button>
+            <Group spacing="sm" className="flex justify-center mt-2">
+              {SWATCHES.map((swatch) => (
+                <ColorSwatch
+                  key={swatch}
+                  color={swatch}
+                  onClick={() => setColor(swatch)}
+                  style={{ cursor: "pointer", width: 30, height: 30 }}
+                />
+              ))}
+            </Group>
+            <Button
+              onClick={runRoute}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white mt-2"
+              disabled={loading}
+            >
+              {loading ? <Loader /> : "Calculate"}
+            </Button>
+          </div>
+        </Draggable>
+      </div>
+
       <canvas
         ref={canvasRef}
         id="canvas"
@@ -250,7 +243,7 @@ export default function Home() {
             defaultPosition={latexPosition}
             onStop={(e, data) => setLatexPosition({ x: data.x, y: data.y })}
           >
-            <div className="absolute p-2 text-white rounded shadow-md">
+            <div className="absolute p-2 text-white rounded shadow-md bg-black bg-opacity-70">
               <div className="latex-content">{latex}</div>
             </div>
           </Draggable>
