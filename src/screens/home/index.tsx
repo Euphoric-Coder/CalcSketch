@@ -179,7 +179,7 @@ export default function Home() {
   return (
     <>
       {/* Slider placed outside of Draggable */}
-      <div className="absolute top-6 left-6 z-30 p-4 bg-gray-800 rounded-lg shadow-md max-w-xs">
+      <div className="absolute top-6 left-6 z-30 p-4 bg-gray-700 rounded-lg shadow-lg max-w-xs text-white">
         <Slider
           label="Line Width"
           value={lineWidth}
@@ -188,7 +188,7 @@ export default function Home() {
           max={20} // Increased range for larger stroke options
           step={1}
           size="lg"
-          className="w-full mb-4"
+          className="w-full my-2"
           styles={{
             thumb: { height: 16, width: 16, backgroundColor: "blue" },
             track: { height: 10, width: 200 },
@@ -196,12 +196,12 @@ export default function Home() {
         />
       </div>
 
-      <div className="absolute top-2 right-2 z-20 p-6 bg-gray-900 rounded-lg shadow-lg max-w-xs">
-        <Draggable>
+      <Draggable>
+        <div className="absolute top-2 right-2 z-20 p-6 bg-gray-900 rounded-lg shadow-lg max-w-xs">
           <div className="flex flex-col space-y-4 items-center">
             <Button
-              onClick={() => setReset(true)}
-              className="w-full bg-red-500 hover:bg-red-600 text-white"
+              onClick={resetCanvas}
+              className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full py-2 px-4 shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95"
             >
               Reset
             </Button>
@@ -211,25 +211,38 @@ export default function Home() {
                   key={swatch}
                   color={swatch}
                   onClick={() => setColor(swatch)}
-                  style={{ cursor: "pointer", width: 30, height: 30 }}
+                  style={{
+                    cursor: "pointer",
+                    width: 30,
+                    height: 30,
+                    borderRadius: "50%",
+                    border: "2px solid white",
+                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+                    transition: "transform 0.2s ease-in-out",
+                  }}
+                  className="hover:scale-110 active:scale-95"
                 />
               ))}
             </Group>
             <Button
               onClick={runRoute}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white mt-2"
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-full py-2 px-4 shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 mt-2"
               disabled={loading}
             >
               {loading ? <Loader /> : "Calculate"}
             </Button>
           </div>
-        </Draggable>
-      </div>
+        </div>
+      </Draggable>
 
       <canvas
         ref={canvasRef}
         id="canvas"
-        className="absolute top-0 left-0 w-full h-full"
+        className="absolute top-0 left-0 w-full h-full border border-gray-700 shadow-lg"
+        style={{
+          backgroundColor: "#1c1c1e", // Dark background for the canvas
+          cursor: "crosshair", // Crosshair cursor for precision drawing
+        }}
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
