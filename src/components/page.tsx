@@ -281,7 +281,7 @@ export default function Home() {
               color="white"
               disabled={loading}
             >
-              {loading ? <Loader /> : "Run"}
+              {loading ? <Loader /> : "Calculate / Generate"}
             </Button>
           </div>
         </div>
@@ -290,7 +290,7 @@ export default function Home() {
       <canvas
         ref={canvasRef}
         id="canvas"
-        className="absolute top-0 left-0 w-full h-full"
+        className="absolute top-0 left-0 w-full h-full cursor-crosshair"
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
