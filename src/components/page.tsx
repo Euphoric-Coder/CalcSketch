@@ -20,7 +20,7 @@ interface Response {
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [color, setColor] = useState("rgb(0, 0, 0)");
+  const [color, setColor] = useState(SWATCHES[0]);
   const [reset, setReset] = useState(false);
   const [lineWidth, setLineWidth] = useState(3); // Default line width
   const [loading, setLoading] = useState(false);
@@ -62,12 +62,12 @@ export default function Home() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight - canvas.offsetTop;
         ctx.lineCap = "round";
-        ctx.lineWidth = lineWidth; // Set line width dynamically based on slider
-        // Set initial black background
+        ctx.lineWidth = lineWidth;
         ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvas.width, canvas.height); // Set canvas background to black
       }
     }
+
     const script = document.createElement("script");
     script.src =
       "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-MML-AM_CHTML";
@@ -88,7 +88,7 @@ export default function Home() {
     return () => {
       document.head.removeChild(script);
     };
-  }, [lineWidth]);
+  }, []);
 
   const renderLatexToCanvas = (expression: string, answer: string) => {
     const latex = `\\(\\LARGE{${expression} = ${answer}}\\)`;
@@ -100,6 +100,8 @@ export default function Home() {
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height); // Reset background
       }
     }
   };
@@ -110,7 +112,7 @@ export default function Home() {
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "black"; // Reset to black background
+        ctx.fillStyle = "black"; // Reset background color
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
     }
@@ -120,11 +122,11 @@ export default function Home() {
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext("2d");
-      const rect = canvas.getBoundingClientRect(); // Get canvas position relative to window
+      const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       ctx!.beginPath();
-      ctx!.moveTo(x, y); // Start drawing from the correct position
+      ctx!.moveTo(x, y);
       setIsDrawing(true);
     }
   };
@@ -134,11 +136,11 @@ export default function Home() {
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext("2d");
-      const rect = canvas.getBoundingClientRect(); // Get canvas position relative to window
+      const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       ctx!.strokeStyle = color;
-      ctx!.lineWidth = lineWidth; // Apply line width to drawing
+      ctx!.lineWidth = lineWidth;
       ctx!.lineTo(x, y);
       ctx!.stroke();
     }
@@ -149,7 +151,7 @@ export default function Home() {
   };
 
   const runRoute = async () => {
-    setLoading(true);
+    setLoading(true); // Set loading to true while fetching data
     const canvas = canvasRef.current;
 
     if (canvas) {
@@ -172,20 +174,53 @@ export default function Home() {
           });
         }
       });
-      setLoading(false);
+
+      const ctx = canvas.getContext("2d");
+      const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
+      let minX = canvas.width,
+        minY = canvas.height,
+        maxX = 0,
+        maxY = 0;
+
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const i = (y * canvas.width + x) * 4;
+          if (imageData.data[i + 3] > 0) {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+          }
+        }
+      }
+
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      setLatexPosition({ x: centerX, y: centerY });
+      resp.data.forEach((data: Response) => {
+        setTimeout(() => {
+          setResult({
+            expression: data.expr,
+            answer: data.result,
+          });
+        }, 1000);
+      });
+
+      setLoading(false); // Set loading to false after the calculation is done
     }
   };
 
   return (
     <>
-      {/* Slider placed outside of Draggable */}
+      {/* UI for Line Width Slider */}
       <div className="absolute top-6 left-6 z-30 p-4 bg-gray-700 rounded-lg shadow-lg max-w-xs text-white">
         <Slider
           label="Line Width"
           value={lineWidth}
           onChange={setLineWidth}
           min={1}
-          max={20} // Increased range for larger stroke options
+          max={20}
           step={1}
           size="lg"
           className="w-full my-2"
@@ -195,41 +230,58 @@ export default function Home() {
           }}
         />
       </div>
-
       <Draggable>
-        <div className="absolute top-2 right-2 z-20 p-6 bg-gray-900 rounded-lg shadow-lg max-w-xs">
+        <div className="absolute top-4 right-4 z-20 p-6 bg-gray-900 rounded-lg shadow-lg w-64">
           <div className="flex flex-col space-y-4 items-center">
             <Button
-              onClick={resetCanvas}
+              onClick={() => setReset(true)}
               className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full py-2 px-4 shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95"
+              variant="default"
+              color="black"
             >
               Reset
             </Button>
-            <Group spacing="sm" className="flex justify-center mt-2">
+
+            <Group className="flex justify-center">
               {SWATCHES.map((swatch) => (
-                <ColorSwatch
+                <div
                   key={swatch}
-                  color={swatch}
-                  onClick={() => setColor(swatch)}
+                  className={`p-1 rounded-full hover:scale-105 active:scale-95 ${
+                    swatch === color
+                      ? "border-4 border-yellow-500"
+                      : "border-2 border-white"
+                  }`} // Conditional border style
                   style={{
+                    boxShadow:
+                      swatch === color
+                        ? "0 0 10px rgba(255, 255, 0, 0.8)"
+                        : "0 4px 8px rgba(0, 0, 0, 0.2)", // Glow effect for selected color
+                    transition:
+                      "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
                     cursor: "pointer",
-                    width: 30,
-                    height: 30,
-                    borderRadius: "50%",
-                    border: "2px solid white",
-                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
-                    transition: "transform 0.2s ease-in-out",
                   }}
-                  className="hover:scale-110 active:scale-95"
-                />
+                  onClick={() => setColor(swatch)} // Update color on click
+                >
+                  <ColorSwatch
+                    color={swatch}
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: "50%",
+                    }}
+                  />
+                </div>
               ))}
             </Group>
+
             <Button
               onClick={runRoute}
-              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-full py-2 px-4 shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 mt-2"
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-full py-2 px-4 shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
+              variant="default"
+              color="white"
               disabled={loading}
             >
-              {loading ? <Loader /> : "Calculate"}
+              {loading ? <Loader /> : "Run"}
             </Button>
           </div>
         </div>
@@ -238,11 +290,7 @@ export default function Home() {
       <canvas
         ref={canvasRef}
         id="canvas"
-        className="absolute top-0 left-0 w-full h-full border border-gray-700 shadow-lg"
-        style={{
-          backgroundColor: "#1c1c1e", // Dark background for the canvas
-          cursor: "crosshair", // Crosshair cursor for precision drawing
-        }}
+        className="absolute top-0 left-0 w-full h-full"
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
@@ -256,7 +304,7 @@ export default function Home() {
             defaultPosition={latexPosition}
             onStop={(e, data) => setLatexPosition({ x: data.x, y: data.y })}
           >
-            <div className="absolute p-2 text-white rounded shadow-md bg-black bg-opacity-70">
+            <div className="absolute p-2 text-white rounded shadow-md bg-black bg-opacity-70 overflow-auto">
               <div className="latex-content">{latex}</div>
             </div>
           </Draggable>

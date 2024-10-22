@@ -2,7 +2,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import "@mantine/core/styles.css";
 import { MantineProvider } from "@mantine/core";
 
-import Home from "@/screens/home";
+import Home from "@/components/page";
 
 import "@/index.css";
 
