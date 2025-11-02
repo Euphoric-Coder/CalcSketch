@@ -1,52 +1,75 @@
-import google.generativeai as genai
 import ast
 import json
+from io import BytesIO
 from PIL import Image
+import google.generativeai as genai
 from constants import GEMINI_API_KEY
 
+# Configure API key
 genai.configure(api_key=GEMINI_API_KEY)
 
-def analyze_image(img: Image, dict_of_vars: dict):
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+
+def analyze_image(img: Image.Image, dict_of_vars: dict):
+    """
+    Analyze a mathematical/graphical/abstract problem from an image
+    using Google's Gemini multimodal API.
+    """
+
+    # Use the latest available model
+    model_name = "gemini-2.0-flash"  # or gemini-2.0-pro if you need reasoning
+
+    # Convert dictionary of vars to JSON
     dict_of_vars_str = json.dumps(dict_of_vars, ensure_ascii=False)
+
+    # Build your text prompt
     prompt = (
-        f"You have been provided an image with various mathematical expressions, equations, graphical problems, or abstract concepts. "
-        f"Your task is to analyze and solve them. Follow the PEMDAS rule for solving mathematical expressions. PEMDAS stands for the Priority Order: Parentheses, Exponents, Multiplication and Division (from left to right), Addition and Subtraction (from left to right). "
-        f"Here are the types of problems you might encounter in the image and how you should respond to each: \n\n"
-        f"**Mathematical Expressions and Equations:**\n"
-        f"1. **Simple Mathematical Expressions:** These could be arithmetic problems such as 2 + 2, 3 * 4, 7 - 8, etc. Solve the expression and return the answer in the format of a **list of one dictionary**, as follows:\n"
-        f"[{{'expr': '2 + 2', 'result': 4}}].\n\n"
-        f"2. **Set of Equations:** These might include problems like x^2 + 2x + 1 = 0 or 3y + 4x = 0. Solve for the unknown variables and return the result in a **comma-separated list of dictionaries**. For example, if x = 2 and y = 5, the response should be:\n"
-        f"[{{'expr': 'x', 'result': 2, 'assign': True}}, {{'expr': 'y', 'result': 5, 'assign': True}}]. Include as many dictionaries as there are variables in the problem.\n\n"
-        f"3. **Assigning Values to Variables:** For problems like x = 4, y = 5, return a list of dictionaries where each variable is assigned its value. Example response:\n"
-        f"[{{'expr': 'x', 'result': 4, 'assign': True}}, {{'expr': 'y', 'result': 5, 'assign': True}}].\n\n"
-        f"**Graphical Math Problems:**\n"
-        f"4. **Word Problems Represented Graphically:** These problems might involve scenarios like cars colliding, trigonometric problems, or geometric shapes with labeled sides or angles (e.g., Pythagorean theorem). Pay special attention to colors or labels used in the image. Return the answer in the format of a **list of one dictionary**. Example:\n"
-        f"[{{'expr': 'Pythagorean theorem', 'result': 10}}].\n\n"
-        f"**Detecting Abstract Concepts in Drawings:**\n"
-        f"5. **Abstract Concepts:** The image may contain abstract representations of emotions, ideas, historical references, or symbolic drawings (such as a heart for love, a flag for patriotism, etc.). Examples of abstract concepts might include: \n"
-        f"- Emotions: Love, Hate, Jealousy, Compassion, Anger, Sadness\n"
-        f"- Ideas: Freedom, Innovation, Equality, Democracy, Justice\n"
-        f"- Historical references: War, Revolution, Discovery, Invention, Scientific Breakthroughs\n"
-        f"- Cultural symbols: Religion, Festivals, Nationalism, Traditions\n"
-        f"- Famous quotes or references: Literary works, Scientific theories, Philosophy\n"
-        f"For these, return the result in the format:\n"
-        f"[{{'expr': 'Patriotism', 'result': 'A flag representing national pride'}}].\n\n"
-        f"Use the following dictionary of user-assigned variables if any are present in the expression or equation: {dict_of_vars_str}. "
-        f"Make sure all dictionary keys and values are properly quoted for easier parsing with Python's `ast.literal_eval`. "
-        f"DO NOT use backticks or markdown formatting in the response."
+        "You are an AI that analyzes an image containing mathematical expressions, "
+        "equations, graphs, or abstract drawings. Follow these rules:\n\n"
+        "• Apply PEMDAS for math expressions.\n"
+        "• Return answers ONLY as a Python list of dictionaries.\n"
+        "• Use keys: 'expr', 'result', and optional 'assign' (boolean).\n\n"
+        "Examples:\n"
+        "[{'expr': '2 + 2', 'result': 4}]\n"
+        "[{'expr': 'x', 'result': 5, 'assign': True}]\n"
+        "[{'expr': 'x', 'result': 3, 'assign': True}, {'expr': 'y', 'result': 6, 'assign': True}]\n\n"
+        "For abstract art or symbols, describe concept meaningfully:\n"
+        "[{'expr': 'Patriotism', 'result': 'A flag representing national pride'}]\n\n"
+        f"Use these variable assignments if relevant: {dict_of_vars_str}.\n"
+        "Do not use markdown or backticks — only raw list syntax."
     )
-    response = model.generate_content([prompt, img])
-    print(response.text)
+
+    # Convert PIL image to bytes
+    img_buffer = BytesIO()
+    img.save(img_buffer, format="PNG")
+    img_bytes = img_buffer.getvalue()
+
+    # Create model instance
+    model = genai.GenerativeModel(model_name=model_name)
+
+    # ✅ Modern multimodal call — pass text and image as list
+    response = model.generate_content(
+        [
+            prompt,
+            {
+                "mime_type": "image/png",
+                "data": img_bytes,
+            },
+        ]
+    )
+
+    print("Raw response:", response.text)
+
+    # Parse response
     answers = []
     try:
         answers = ast.literal_eval(response.text)
     except Exception as e:
-        print(f"Error in parsing response from Gemini API: {e}")
-    print('returned answer ', answers)
-    for answer in answers:
-        if 'assign' in answer:
-            answer['assign'] = True
-        else:
-            answer['assign'] = False
+        print(f"⚠️ Error parsing response: {e}")
+        answers = []
+
+    # Add default 'assign' field for consistency
+    for ans in answers:
+        ans["assign"] = bool(ans.get("assign", False))
+
+    print("Final answers:", answers)
     return answers
