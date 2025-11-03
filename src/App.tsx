@@ -8,7 +8,7 @@ import { ResultsPanel } from "./components/ResultsPanel";
 import { Loader } from "./components/Loader";
 import { useTouchDrawing } from "./hooks/useTouchDrawing";
 import { SWATCHES, DRAWING_MODES, type DrawingMode } from "./constants";
-import { Palette, RotateCcw, Send, Settings, Eraser } from "lucide-react";
+import { Palette, RotateCcw, Send, Settings, Eraser, Loader2, Wifi, WifiOff } from "lucide-react";
 
 interface Result {
   id: string;
@@ -37,9 +37,36 @@ function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [showCursor, setShowCursor] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<
+    "checking" | "online" | "offline"
+  >("checking");
 
   const { getTouchPos, getPointerPos, drawLine, lastTouchRef } =
     useTouchDrawing();
+
+  // Function to check backend health
+  const checkBackendStatus = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/check`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Backend check:", data);
+        setBackendStatus("online");
+      } else {
+        setBackendStatus("offline");
+      }
+    } catch (error) {
+      console.error("Backend unreachable:", error);
+      setBackendStatus("offline");
+    }
+  };
+
+  // Run every 5 seconds
+  useEffect(() => {
+    checkBackendStatus(); // initial call
+    const interval = setInterval(checkBackendStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Detect mobile device
   useEffect(() => {
@@ -335,16 +362,19 @@ function App() {
       const imageData = canvas.toDataURL("image/png");
 
       // Send to backend
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/calculate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image: imageData,
-          dict_of_vars: dictOfVars,
-        }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/calculate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            image: imageData,
+            dict_of_vars: dictOfVars,
+          }),
+        }
+      );
 
       const result = await response.json();
       console.log("Backend Response:", result);
@@ -470,10 +500,42 @@ function App() {
                 <div className="space-y-6">
                   {/* Color Picker */}
                   <div>
-                    <h3 className="text-white font-medium mb-3 flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-purple-400" />
-                      Drawing Tools
-                    </h3>
+                    <div className="mb-3">
+                      <h3 className="text-white font-medium mb-3 flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-purple-400" />
+                        Drawing Tools
+                      </h3>
+                      <div
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium shadow-md transition-all duration-300 ${
+                          backendStatus === "online"
+                            ? "bg-green-500/20 text-green-300 border border-green-400/50"
+                            : backendStatus === "checking"
+                            ? "bg-yellow-500/20 text-yellow-300 border border-yellow-400/50"
+                            : "bg-red-500/20 text-red-300 border border-red-400/50"
+                        }`}
+                      >
+                        {backendStatus === "online" && (
+                          <>
+                            <Wifi className="w-4 h-4 text-green-300 animate-pulse" />
+                            <span>Backend Online</span>
+                          </>
+                        )}
+
+                        {backendStatus === "checking" && (
+                          <>
+                            <Loader2 className="w-4 h-4 text-yellow-300 animate-spin" />
+                            <span>Checking...</span>
+                          </>
+                        )}
+
+                        {backendStatus === "offline" && (
+                          <>
+                            <WifiOff className="w-4 h-4 text-red-300 animate-bounce" />
+                            <span>Backend Offline</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                     <ColorPicker
                       selectedColor={color}
                       onColorChange={setColor}
