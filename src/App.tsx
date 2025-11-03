@@ -8,7 +8,16 @@ import { ResultsPanel } from "./components/ResultsPanel";
 import { Loader } from "./components/Loader";
 import { useTouchDrawing } from "./hooks/useTouchDrawing";
 import { SWATCHES, DRAWING_MODES, type DrawingMode } from "./constants";
-import { Palette, RotateCcw, Send, Settings, Eraser, Loader2, Wifi, WifiOff } from "lucide-react";
+import {
+  Palette,
+  RotateCcw,
+  Send,
+  Settings,
+  Eraser,
+  Loader2,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 
 interface Result {
   id: string;
