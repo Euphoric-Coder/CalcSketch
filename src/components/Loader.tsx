@@ -1,18 +1,12 @@
-import React from "react";
+import React from 'react';
 
-interface LoaderProps {
-  size?: number;
-  className?: string;
-}
-
-export const Loader: React.FC<LoaderProps> = ({
-  size = 26,
-  className = "",
-}) => {
+export const Loader: React.FC = () => {
   return (
-    <div
-      className={`border-2 border-t-transparent border-white rounded-full animate-spin ${className}`}
-      style={{ width: size, height: size }}
-    ></div>
+    <div className="flex items-center justify-center">
+      <div className="relative">
+        <div className="w-6 h-6 border-2 border-white/30 rounded-full"></div>
+        <div className="absolute top-0 left-0 w-6 h-6 border-2 border-white border-r-transparent rounded-full animate-spin"></div>
+      </div>
+    </div>
   );
 };

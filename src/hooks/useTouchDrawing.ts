@@ -36,18 +36,18 @@ export const useTouchDrawing = () => {
     baseLineWidth: number,
     mode: DrawingMode = 'draw'
   ) => {
-    // Use pressure to vary line width (Apple Pencil feature)
     const pressureMultiplier = Math.max(0.3, Math.min(2, to.pressure || 1));
-    const lineWidth = baseLineWidth * pressureMultiplier;
 
     if (mode === 'erase') {
-      ctx.globalCompositeOperation = 'destination-out';
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = '#111111'; // Dark color to match background
+      ctx.lineWidth = baseLineWidth * 5 * pressureMultiplier;
     } else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = color;
+      ctx.lineWidth = baseLineWidth * pressureMultiplier;
     }
     
-    ctx.lineWidth = lineWidth;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 

@@ -68,14 +68,14 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
                 <input
                   type="range"
                   min="1"
-                  max="20"
+                  max="100"
                   value={lineWidth}
                   onChange={(e) => onLineWidthChange(Number(e.target.value))}
                   className="flex-1 h-3 bg-white/20 rounded-lg appearance-none touch-manipulation"
                 />
                 <button
                   className="p-2 bg-white/20 rounded-lg touch-manipulation"
-                  onClick={() => onLineWidthChange(Math.min(20, lineWidth + 1))}
+                  onClick={() => onLineWidthChange(Math.min(100, lineWidth + 1))}
                 >
                   <Plus className="w-4 h-4 text-white" />
                 </button>

@@ -11,7 +11,7 @@ export const LineWidthSlider: React.FC<LineWidthSliderProps> = ({
   value,
   onChange,
   min = 1,
-  max = 20,
+  max = 100,
 }) => {
   return (
     <div className="space-y-3">
