@@ -59,17 +59,52 @@ def analyze_image(img: Image.Image, dict_of_vars: dict):
 
     print("Raw response:", response.text)
 
-    # Parse response
     answers = []
+
     try:
-        answers = ast.literal_eval(response.text)
+        # Step 1: Try direct parsing (literal_eval)
+        text = response.text.strip()
+
+        # Some models return JSON with single quotes or code blocks
+        text = text.strip("`").replace("json", "").strip()
+
+        # Fix single quotes -> double quotes for valid JSON parsing
+        text_json_like = text.replace("'", '"')
+
+        try:
+            parsed = json.loads(text_json_like)
+        except json.JSONDecodeError:
+            # Fallback: attempt ast.literal_eval
+            parsed = ast.literal_eval(text)
+
+        # Step 2: Ensure parsed data is a list of dicts
+        if isinstance(parsed, dict):
+            parsed = [parsed]
+        elif not isinstance(parsed, list):
+            parsed = [{"expr": "Unknown", "result": str(parsed)}]
+
+        # Step 3: Normalize all entries
+        answers = []
+        for item in parsed:
+            expr = str(item.get("expr", ""))
+            result = item.get("result", "")
+            assign = bool(item.get("assign", False))
+
+            # Convert any non-serializable or numeric result to string safely
+            if isinstance(result, (int, float)):
+                result_str = str(result)
+            elif isinstance(result, (dict, list)):
+                result_str = json.dumps(result, ensure_ascii=False)
+            else:
+                result_str = str(result)
+
+            answers.append(
+                {"expr": expr.strip(), "result": result_str.strip(), "assign": assign}
+            )
+
     except Exception as e:
         print(f"⚠️ Error parsing response: {e}")
         answers = []
-
-    # Add default 'assign' field for consistency
-    for ans in answers:
-        ans["assign"] = bool(ans.get("assign", False))
 
     print("Final answers:", answers)
     return answers
